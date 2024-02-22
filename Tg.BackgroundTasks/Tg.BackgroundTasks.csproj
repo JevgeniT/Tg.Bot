@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>dotnet-Tg.BackgroundTasks-4AD3838B-8FCB-44E4-89C2-5557F98A5D3D</UserSecretsId>
+        <RootNamespace>Tg.BackgroundTasks</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Hangfire.NetCore" Version="1.8.10" />
+        <PackageReference Include="Hangfire.SqlServer" Version="1.8.10" />
+        <PackageReference Include="MediatR" Version="12.2.0" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0"/>
+        <PackageReference Include="Telegram.Bot" Version="19.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Tg.Bot\Tg.Bot.csproj" />
+      <ProjectReference Include="..\Tg.Persistence\Tg.Persistence.csproj" />
+    </ItemGroup>
+</Project>
