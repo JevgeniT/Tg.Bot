@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using ErrorOr;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -10,12 +11,13 @@ using Tg.Bot.Contracts.Reminder;
 using Tg.Bot.Core.Reminder.CreateReminder;
 using Tg.Bot.Core.Reminder.DeleteReminder;
 using Tg.Bot.Core.Reminder.ListReminders;
+using Tg.Bot.Domain;
 using Tg.Bot.Domain.Services;
 
 namespace Tg.Bot;
 
 
-public class BotController(ILogger<BotController> logger, ITelegramBotClient bot, IMediator mediator) : IBotController
+public class BotController(ILogger<BotController> logger, ITelegramBotClient bot, IMediator mediator, Channel<Reminder> channel) : IBotController
 {
     public void StartReceiving(CancellationToken cts)
     {
@@ -28,9 +30,23 @@ public class BotController(ILogger<BotController> logger, ITelegramBotClient bot
             },
             cancellationToken: cts
         );
+        Task.Run(() => ReadRemindersChannel(cts), cts);
     }
 
-    public async Task Respond(long chatId, string msg, CancellationToken ct)
+    private async Task ReadRemindersChannel(CancellationToken cts)
+    {
+        while (!cts.IsCancellationRequested)
+        {
+            if (channel.Reader.TryRead(out var reminder) && reminder is not null)
+            {
+                await RespondAsync(reminder.ChatId, reminder.Text, cts);
+                logger.LogInformation($"Sending {reminder.Text} to {reminder.ChatId }");
+            }
+            await Task.Delay(5000, cts);
+        }
+    }
+    
+    public async Task RespondAsync(long chatId, string msg, CancellationToken ct)
     {
         // todo map to response obj
         InlineKeyboardMarkup inlineKeyboard = new(new[]
@@ -45,7 +61,7 @@ public class BotController(ILogger<BotController> logger, ITelegramBotClient bot
         await bot.SendTextMessageAsync(
             chatId: chatId,
             text: msg,
-            replyMarkup: inlineKeyboard,
+            // replyMarkup: inlineKeyboard,
             cancellationToken: ct);
     }
 
@@ -70,21 +86,21 @@ public class BotController(ILogger<BotController> logger, ITelegramBotClient bot
 
         if (command is null)
         {
-            await Respond(chatId: chatId, msg: "Invalid command", cancellationToken);
+            await RespondAsync(chatId: chatId, msg: "Invalid command", cancellationToken);
             return;
         }
         
         var response = await mediator.Send(command, cancellationToken);
-
+        
         var responseBody = response switch
         {
-            IEnumerable<ListRemindersResponse> list => string.Join("\n", list.Select(x => $"{x.Text} {x.RemindOn}")),
+            ICollection<ListRemindersResponse> list when list.Count != 0 => string.Join("\n", list.Select(x => $"{x.Text} {x.RemindOn}")),
             ErrorOr<CreateReminderResponse> { IsError: true } r => string.Join("\n", r.Errors.Select(x => $"{x.Description}")),
             ErrorOr<CreateReminderResponse> { IsError: false } => "saved",
             _ => "ok"
         };
 
-        await Respond(chatId: chatId, msg: responseBody, cancellationToken);
+        await RespondAsync(chatId: chatId, msg: responseBody, cancellationToken);
     }
     
     private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
@@ -97,6 +113,7 @@ public class BotController(ILogger<BotController> logger, ITelegramBotClient bot
         };
 
         logger.LogError(error);
+
         return Task.CompletedTask;
     }
 }

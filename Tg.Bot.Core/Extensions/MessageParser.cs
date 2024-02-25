@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 namespace Tg.Bot.Core.Extensions;
 
 public static class MessageParser
@@ -10,13 +13,15 @@ public static class MessageParser
         
     public static DateTime ParseDate(string msgBody)
     {
-        var arr = msgBody.Split(" ");
-        if (arr.Length != 3) return default;
-            
-        var dateStr = arr[2];
-        var date = dateStr.Split('.');
-            
-        var (day, month) = (date[0], date[1]); // todo  hh:mm ?
-        return new DateTime(2024, int.Parse(month), int.Parse(day));
+        var dateTime = Regex.Replace(msgBody, "[a-zA-Z]*\\s","");
+        try
+        {
+            return DateTime.ParseExact(dateTime, "dd.MM/HH.mm", CultureInfo.InvariantCulture);
+        }
+        catch (Exception e)
+        {
+            return default;
+        }
+        
     }
 }

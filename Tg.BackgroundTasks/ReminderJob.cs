@@ -1,18 +1,20 @@
-using MediatR;
+using System.Threading.Channels;
+using Tg.Bot.Domain;
 
 namespace Tg.BackgroundTasks;
 
-public class ReminderJob(IMediator mediator)
+public class ReminderJob(IReminderRepository repository, Channel<Reminder> channel)
 {
-    public async Task<string> SendMsg()
+    public async Task ReminderNotifierJob()
     {
-        //todo
-        await Task.Delay(3000);
-        // await mediator.Send(new ReminderEvent()
-        // {
-        //     ChatId = 4123123,
-        //     Text = "hangfire message"
-        // });
-        return string.Empty;
+        var reminders = (await repository.GetReminders(DateTime.Now)).ToList();
+        if(reminders.Count == 0) return;
+        
+        //todo delete inactive, fail case
+        reminders.ForEach(x=> channel.Writer.TryWrite(new Reminder()
+        {
+            ChatId = x.ChatId,
+            Text = x.Text
+        }));
     }
 }

@@ -1,6 +1,6 @@
 using Tg.Bot.Domain.Services;
 
-namespace Tg.Worker;
+namespace Tg.BackgroundTasks;
 
 public class BotRunnerTask(ILogger<BotRunnerTask> logger, IBotController bot) : BackgroundService
 {
